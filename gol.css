@@ -3,6 +3,10 @@ body {
     width: 1024px;
     background: black;
     font-family: sans-serif;
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 h1 {
