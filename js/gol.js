@@ -53,6 +53,10 @@ GOL.now = function() {
  * @returns {WebGLTexture} A texture suitable for bearing Life state
  */
 GOL.prototype.texture = function() {
+    /* LUMINANCE textures would have been preferable (one byte per
+     * cell), but, unlike RGBA, LUMINANCE is not a complete color
+     * attachment for a framebuffer.
+     */
     var gl = this.gl;
     var tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -121,7 +125,6 @@ GOL.prototype.step = function() {
     gl.bindTexture(gl.TEXTURE_2D, this.textures[this.other()]);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
                             gl.TEXTURE_2D, this.textures[this.other()], 0);
-    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
     gl.viewport(0, 0, this.statesize.x, this.statesize.y);
     this.programs.gol.use()
