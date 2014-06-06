@@ -1,0 +1,14 @@
+body {
+    margin: 10px auto;
+    width: 1024px;
+    background: black;
+}
+
+h1 {
+    color: salmon;
+    text-align: center;
+}
+
+canvas {
+    border: 1px solid #333;
+}
