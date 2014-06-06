@@ -84,7 +84,6 @@ GOL.prototype.fill = function(name, p) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
                   this.statesize.x, this.statesize.y,
                   0, gl.RGBA, gl.UNSIGNED_BYTE, rand);
-    gl.bindTexture(gl.TEXTURE_2D, null);
     return this;
 };
 
@@ -138,7 +137,6 @@ GOL.prototype.draw = function() {
         .uniform('state', 0, true)
         .uniform('scale', this.viewsize)
         .draw(gl.TRIANGLE_STRIP, 4);
-    gl.bindTexture(gl.TEXTURE_2D, null);
     return this;
 };
 
