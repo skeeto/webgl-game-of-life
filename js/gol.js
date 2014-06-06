@@ -1,5 +1,9 @@
+function $(s) {
+    return document.querySelector(s);
+}
+
 /**
- * Combination state and display.
+ * Game of Life simulation and display.
  * @param {HTMLCanvasElement} canvas Render target
  * @param {number} [scale] Size of each cell in pixels (power of 2)
  * @param {number} [p] Starting probability of a cell being alive
@@ -38,13 +42,15 @@ function GOL(canvas, scale, p) {
     this.fill(this.state, p == null ? 0.5 : p);
 }
 
+/**
+ * @returns {number} The epoch in integer seconds
+ */
 GOL.now = function() {
     return Math.floor(Date.now() / 1000);
 };
 
 /**
- * Create a texture suitable for bearing Life state.
- * @returns {WebGLTexture}
+ * @returns {WebGLTexture} A texture suitable for bearing Life state
  */
 GOL.prototype.texture = function() {
     var gl = this.gl;
@@ -155,10 +161,6 @@ GOL.prototype.reset = function(p) {
     this.fill(this.state, p == null ? 0.5 : p);
     return this;
 };
-
-function $(s) {
-    return document.querySelector(s);
-}
 
 /* Initialize everything. */
 var gol = null;
