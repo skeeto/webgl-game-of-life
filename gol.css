@@ -9,10 +9,14 @@ body {
     -webkit-touch-callout: none;
 }
 
-h1 {
+h1, h2 {
     color: salmon;
     text-align: center;
     margin: 0;
+}
+
+h2 {
+    font-size: 20px;
 }
 
 canvas {
@@ -37,4 +41,25 @@ div.description {
     right: 0;
     color: #444;
     font-size: 12px;
+}
+
+ul li span {
+    display: inline-block;
+}
+
+ul {
+    list-style-type: none;
+    color: pink;
+}
+
+ul li .input {
+    text-align: right;
+    width: 250px;
+    font-weight: bold;
+}
+
+ul li .result {
+    text-align: left;
+    width: 250px;
+    font-style: italic;
 }

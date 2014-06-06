@@ -1,7 +1,3 @@
-function $(s) {
-    return document.querySelector(s);
-}
-
 /**
  * Game of Life simulation and display.
  * @param {HTMLCanvasElement} canvas Render target
@@ -14,10 +10,11 @@ function GOL(canvas, scale, p) {
         alert('Could not initialize WebGL!');
         throw new Error('No WebGL');
     }
-    scale = scale || 4;
+    scale = this.scale = scale || 4;
     var w = canvas.width, h = canvas.height;
     this.viewsize = vec2(w, h);
     this.statesize = vec2(w / scale, h / scale);
+    this.timer = null;
     this.lasttick = GOL.now();
     this.fps = 0;
 
@@ -39,7 +36,7 @@ function GOL(canvas, scale, p) {
         step: gl.createFramebuffer()
     };
     this.state = 'a';
-    this.fillRandom(p == null ? 0.5 : p);
+    this.fillRandom(p);
 }
 
 /**
@@ -91,6 +88,7 @@ GOL.prototype.fill = function(state) {
  */
 GOL.prototype.fillRandom = function(p) {
     var gl = this.gl, fs = 4;
+    p = p == null ? 0.5 : p;
     var rand = new Uint8Array(this.statesize.x * this.statesize.y * fs);
     for (var i = 0; i < rand.length; i += fs) {
         var v = Math.random() < p ? 255 : 0;
@@ -98,6 +96,15 @@ GOL.prototype.fillRandom = function(p) {
         rand[i + 3] = 255;
     }
     this.fill(rand);
+    return this;
+};
+
+/**
+ * Clear the simulation state to empty.
+ * @returns {GOL} this
+ */
+GOL.prototype.fillEmpty = function(p) {
+    this.fillRandom(0);
     return this;
 };
 
@@ -114,7 +121,7 @@ GOL.prototype.other = function() {
  */
 GOL.prototype.step = function() {
     if (GOL.now() != this.lasttick) {
-        $('.fps').innerHTML = this.fps + ' FPS';
+        $('.fps').text(this.fps + ' FPS');
         this.lasttick = GOL.now();
         this.fps = 0;
     } else {
@@ -154,26 +161,6 @@ GOL.prototype.draw = function() {
 };
 
 /**
- * Iterate the Game of Life state and then draw.
- * @returns {GOL} this
- */
-GOL.prototype.all = function() {
-    this.step();
-    this.draw();
-    return this;
-};
-
-/**
- * Reset the state to random values.
- * @param {number} [p] Chance of a cell being alive (0.0 to 1.0)
- * @returns {GOL} this
- */
-GOL.prototype.reset = function(p) {
-    this.fill(this.state, p == null ? 0.5 : p);
-    return this;
-};
-
-/**
  * Set the state at a specific position.
  * @param {number} x
  * @param {number} y
@@ -188,15 +175,106 @@ GOL.prototype.set = function(x, y, state) {
                      new Uint8Array([v, v, v, 255]));
 };
 
-/* Initialize everything. */
-var gol = null;
-window.addEventListener('load', function() {
-    var canvas = $('#life');
-    gol = new GOL(canvas).draw();
-    setInterval(function(){
-        gol.all();
-    }, 60);
-    canvas.addEventListener('click', function() {
-        gol.reset();
+/**
+ * Run the simulation automatically on a timer.
+ * @returns {GOL} this
+ */
+GOL.prototype.start = function() {
+    if (this.timer == null) {
+        this.timer = setInterval(function(){
+            gol.step();
+            gol.draw();
+        }, 60);
+    }
+    return this;
+};
+
+/**
+ * Stop animating the simulation.
+ * @returns {GOL} this
+ */
+GOL.prototype.stop = function() {
+    clearInterval(this.timer);
+    this.timer = null;
+    return this;
+};
+
+/**
+ * Toggle the animation state.
+ * @returns {GOL} this
+ */
+GOL.prototype.toggle = function() {
+    if (this.timer == null) {
+        this.start();
+    } else {
+        this.stop();
+    }
+};
+
+/**
+ * Find simulation coordinates for event.
+ * This is a workaround for Firefox bug #69787 and jQuery bug #8523.
+ * @returns {vec2} target-relative offset
+ */
+GOL.prototype.eventCoord = function(event) {
+    var $target = $(event.target),
+        offset = $target.offset(),
+        border = 1,
+        x = event.pageX - offset.left - border,
+        y = $target.height() - (event.pageY - offset.top - border);
+    return vec2(Math.floor(x / this.scale), Math.floor(y / this.scale));
+};
+
+/**
+ * Manages the user interface for a simulation.
+ */
+function Controller(gol) {
+    this.gol = gol;
+    var _this = this,
+        $canvas = $(gol.gl.canvas);
+    this.drag = null;
+    $canvas.on('mousedown', function(event) {
+        _this.drag = event.which;
+        var pos = gol.eventCoord(event);
+        gol.set(pos.x, pos.y, _this.drag == 1);
+        gol.draw();
     });
+    $canvas.on('mouseup', function(event) {
+        _this.drag = null;
+    });
+    $canvas.on('mousemove', function(event) {
+        if (_this.drag) {
+            var pos = gol.eventCoord(event);
+            gol.set(pos.x, pos.y, _this.drag == 1);
+            gol.draw();
+        }
+    });
+    $canvas.on('contextmenu', function(event) {
+        event.preventDefault();
+        return false;
+    });
+    $(document).on('keyup', function(event) {
+        switch (event.which) {
+        case 82: /* r */
+            gol.fillRandom();
+            gol.draw();
+            break;
+        case 46: /* [delete] */
+            gol.fillEmpty();
+            gol.draw();
+            break;
+        case 32: /* [space] */
+            gol.toggle();
+            break;
+
+        };
+    });
+}
+
+/* Initialize everything. */
+var gol = null, controller = null;
+$(document).ready(function() {
+    var $canvas = $('#life');
+    gol = new GOL($canvas[0]).draw().start();
+    controller = new Controller(gol);
 });
