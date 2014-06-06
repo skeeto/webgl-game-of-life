@@ -2,13 +2,27 @@ body {
     margin: 10px auto;
     width: 1024px;
     background: black;
+    font-family: sans-serif;
 }
 
 h1 {
     color: salmon;
     text-align: center;
+    margin: 0;
 }
 
 canvas {
     border: 1px solid #333;
+}
+
+div.description {
+    color: salmon;
+    width: 600px;
+    margin: 0px auto;
+    text-indent: 1em;
+}
+
+.description p {
+    margin: 5px 0;
+    text-align: justify;
 }

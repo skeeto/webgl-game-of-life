@@ -143,12 +143,19 @@ GOL.prototype.reset = function(p) {
     return this;
 };
 
+function $(s) {
+    return document.querySelector(s);
+}
+
 /* Initialize everything. */
 var gol = null;
 window.addEventListener('load', function() {
-    function $(s) { return document.querySelector(s); }
-    gol = new GOL($('#life')).draw();
+    var canvas = $('#life');
+    gol = new GOL(canvas).draw();
     setInterval(function(){
         gol.all();
     }, 60);
+    canvas.addEventListener('click', function() {
+        gol.reset();
+    });
 });
