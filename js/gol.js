@@ -60,15 +60,15 @@ GOL.prototype.texture = function() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE,
                   this.statesize.x, this.statesize.y,
-                  0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                  0, gl.LUMINANCE, gl.UNSIGNED_BYTE, null);
     return tex;
 };
 
 /**
  * Set the entire simulation state at once.
- * @param {Uint8Array} state An RGBA array
+ * @param {Uint8Array} state One byte per cell
  * @returns {GOL} this
  */
 GOL.prototype.fill = function(state) {
@@ -76,7 +76,7 @@ GOL.prototype.fill = function(state) {
     gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0,
                      this.statesize.x, this.statesize.y,
-                     gl.RGBA, gl.UNSIGNED_BYTE, state);
+                     gl.LUMINANCE, gl.UNSIGNED_BYTE, state);
     return this;
 };
 
@@ -86,14 +86,12 @@ GOL.prototype.fill = function(state) {
  * @returns {GOL} this
  */
 GOL.prototype.fillRandom = function(p) {
-    var gl = this.gl, fs = 4;
-    var rand = new Uint8Array(this.statesize.x * this.statesize.y * fs);
-    for (var i = 0; i < rand.length; i += fs) {
-        var v = Math.random() < p ? 255 : 0;
-        rand[i + 0] = rand[i + 1] = rand[i + 2] = v;
-        rand[i + 3] = 255;
+    var gl = this.gl;
+    var random = new Uint8Array(this.statesize.x * this.statesize.y);
+    for (var i = 0; i < random.length; i++) {
+        random[i] = Math.random() < p ? 255 : 0;
     }
-    this.fill(rand);
+    this.fill(random);
     return this;
 };
 
@@ -121,7 +119,6 @@ GOL.prototype.step = function() {
     gl.bindTexture(gl.TEXTURE_2D, this.textures[this.other()]);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
                             gl.TEXTURE_2D, this.textures[this.other()], 0);
-    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
     gl.viewport(0, 0, this.statesize.x, this.statesize.y);
     this.programs.gol.use()
@@ -177,12 +174,11 @@ GOL.prototype.reset = function(p) {
  * @param {boolean} state True/false for live/dead
  */
 GOL.prototype.set = function(x, y, state) {
-    var gl = this.gl,
-        v = state * 255;
+    var gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, 1, 1,
-                     gl.RGBA, gl.UNSIGNED_BYTE,
-                     new Uint8Array([v, v, v, 255]));
+                     gl.LUMINANCE, gl.UNSIGNED_BYTE,
+                     new Uint8Array([state * 255]));
 };
 
 /* Initialize everything. */
