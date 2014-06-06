@@ -14,6 +14,8 @@ function GOL(canvas, scale, p) {
     var w = canvas.width, h = canvas.height;
     this.viewsize = vec2(w, h);
     this.statesize = vec2(w / scale, h / scale);
+    this.lasttick = GOL.now();
+    this.fps = 0;
 
     gl.disable(gl.DEPTH_TEST);
     this.programs = {
@@ -35,6 +37,10 @@ function GOL(canvas, scale, p) {
     this.state = 'a';
     this.fill(this.state, p == null ? 0.5 : p);
 }
+
+GOL.now = function() {
+    return Math.floor(Date.now() / 1000);
+};
 
 /**
  * Create a texture suitable for bearing Life state.
@@ -88,6 +94,13 @@ GOL.prototype.other = function() {
  * @returns {GOL} this
  */
 GOL.prototype.step = function() {
+    if (GOL.now() != this.lasttick) {
+        $('.fps').innerHTML = this.fps + ' FPS';
+        this.lasttick = GOL.now();
+        this.fps = 0;
+    } else {
+        this.fps++;
+    }
     var gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers.step);
     gl.bindTexture(gl.TEXTURE_2D, this.textures[this.other()]);
