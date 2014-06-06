@@ -39,7 +39,7 @@ function GOL(canvas, scale, p) {
         step: gl.createFramebuffer()
     };
     this.state = 'a';
-    this.fill(this.state, p == null ? 0.5 : p);
+    this.fillRandom(p == null ? 0.5 : p);
 }
 
 /**
@@ -67,23 +67,33 @@ GOL.prototype.texture = function() {
 };
 
 /**
- * Set a state texture to random values.
- * @param {string} name Name of the texture to reset (a or b)
+ * Set the entire simulation state at once.
+ * @param {Uint8Array} state An RGBA array
+ * @returns {GOL} this
+ */
+GOL.prototype.fill = function(state) {
+    var gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0,
+                     this.statesize.x, this.statesize.y,
+                     gl.RGBA, gl.UNSIGNED_BYTE, state);
+    return this;
+};
+
+/**
+ * Fill the entire state with random values.
  * @param {number} [p] Chance of a cell being alive (0.0 to 1.0)
  * @returns {GOL} this
  */
-GOL.prototype.fill = function(name, p) {
-    var gl = this.gl, w = this.statesize.x, h = this.statesize.y, fs = 4;
-    var rand = new Uint8Array(w * h * fs);
+GOL.prototype.fillRandom = function(p) {
+    var gl = this.gl, fs = 4;
+    var rand = new Uint8Array(this.statesize.x * this.statesize.y * fs);
     for (var i = 0; i < rand.length; i += fs) {
         var v = Math.random() < p ? 255 : 0;
         rand[i + 0] = rand[i + 1] = rand[i + 2] = v;
         rand[i + 3] = 255;
     }
-    gl.bindTexture(gl.TEXTURE_2D, this.textures[name]);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
-                  this.statesize.x, this.statesize.y,
-                  0, gl.RGBA, gl.UNSIGNED_BYTE, rand);
+    this.fill(rand);
     return this;
 };
 
@@ -158,6 +168,21 @@ GOL.prototype.all = function() {
 GOL.prototype.reset = function(p) {
     this.fill(this.state, p == null ? 0.5 : p);
     return this;
+};
+
+/**
+ * Set the state at a specific position.
+ * @param {number} x
+ * @param {number} y
+ * @param {boolean} state True/false for live/dead
+ */
+GOL.prototype.set = function(x, y, state) {
+    var gl = this.gl,
+        v = state * 255;
+    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, 1, 1,
+                     gl.RGBA, gl.UNSIGNED_BYTE,
+                     new Uint8Array([v, v, v, 255]));
 };
 
 /* Initialize everything. */
