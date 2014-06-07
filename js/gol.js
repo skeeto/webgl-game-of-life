@@ -29,13 +29,12 @@ function GOL(canvas, scale, p) {
         ]))
     };
     this.textures = {
-        a: this.texture(),
-        b: this.texture()
+        front: this.texture(),
+        back: this.texture()
     };
     this.framebuffers = {
         step: gl.createFramebuffer()
     };
-    this.state = 'a';
     this.fillRandom(p);
 }
 
@@ -74,7 +73,7 @@ GOL.prototype.texture = function() {
  */
 GOL.prototype.fill = function(state) {
     var gl = this.gl;
-    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0,
                      this.statesize.x, this.statesize.y,
                      gl.RGBA, gl.UNSIGNED_BYTE, state);
@@ -109,10 +108,14 @@ GOL.prototype.fillEmpty = function(p) {
 };
 
 /**
- * @returns {string} The name of the non-current state texture
+ * Swap the texture buffers.
+ * @returns {GOL} this
  */
-GOL.prototype.other = function() {
-    return this.state == 'a' ? 'b' : 'a';
+GOL.prototype.swap = function() {
+    var tmp = this.textures.front;
+    this.textures.front = this.textures.back;
+    this.textures.back = tmp;
+    return this;
 };
 
 /**
@@ -129,17 +132,16 @@ GOL.prototype.step = function() {
     }
     var gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers.step);
-    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.other()]);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
-                            gl.TEXTURE_2D, this.textures[this.other()], 0);
-    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
+                            gl.TEXTURE_2D, this.textures.back, 0);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
     gl.viewport(0, 0, this.statesize.x, this.statesize.y);
     this.programs.gol.use()
         .attrib('quad', this.buffers.quad, 2)
         .uniform('state', 0, true)
         .uniform('scale', this.statesize)
         .draw(gl.TRIANGLE_STRIP, 4);
-    this.state = this.other();
+    this.swap();
     return this;
 };
 
@@ -150,7 +152,7 @@ GOL.prototype.step = function() {
 GOL.prototype.draw = function() {
     var gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
     gl.viewport(0, 0, this.viewsize.x, this.viewsize.y);
     this.programs.copy.use()
         .attrib('quad', this.buffers.quad, 2)
@@ -169,7 +171,7 @@ GOL.prototype.draw = function() {
 GOL.prototype.set = function(x, y, state) {
     var gl = this.gl,
         v = state * 255;
-    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, 1, 1,
                      gl.RGBA, gl.UNSIGNED_BYTE,
                      new Uint8Array([v, v, v, 255]));
@@ -181,9 +183,8 @@ GOL.prototype.set = function(x, y, state) {
 GOL.prototype.get = function() {
     var gl = this.gl, w = this.statesize.x, h = this.statesize.y;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers.step);
-    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
-                            gl.TEXTURE_2D, this.textures[this.state], 0);
+                            gl.TEXTURE_2D, this.textures.front, 0);
     var data = new Uint8Array(w * h * 4);
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, data);
     return data;
