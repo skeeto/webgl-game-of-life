@@ -176,6 +176,20 @@ GOL.prototype.set = function(x, y, state) {
 };
 
 /**
+ * @returns {Uint8Array} An RGBA snapshot of the simulation state.
+ */
+GOL.prototype.get = function() {
+    var gl = this.gl, w = this.statesize.x, h = this.statesize.y;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers.step);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures[this.state]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+                            gl.TEXTURE_2D, this.textures[this.state], 0);
+    var data = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    return data;
+};
+
+/**
  * Run the simulation automatically on a timer.
  * @returns {GOL} this
  */
