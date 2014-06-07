@@ -289,7 +289,13 @@ function Controller(gol) {
         case 32: /* [space] */
             gol.toggle();
             break;
-
+        case 83: /* s */
+            if (event.shiftKey) {
+                if (this._save) gol.set(this._save);
+            } else {
+                this._save = gol.get();
+            }
+            break;
         };
     });
 }
