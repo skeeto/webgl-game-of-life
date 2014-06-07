@@ -98,7 +98,7 @@ GOL.prototype.texture = function() {
 
 /**
  * Set the entire simulation state at once.
- * @param state A boolean array.
+ * @param {Object} state Boolean array-like
  * @returns {GOL} this
  */
 GOL.prototype.set = function(state) {
@@ -136,7 +136,7 @@ GOL.prototype.setRandom = function(p) {
  * Clear the simulation state to empty.
  * @returns {GOL} this
  */
-GOL.prototype.setEmpty = function(p) {
+GOL.prototype.setEmpty = function() {
     this.set(new Uint8Array(this.statesize.x * this.statesize.y));
     return this;
 };
@@ -201,6 +201,7 @@ GOL.prototype.draw = function() {
  * @param {number} x
  * @param {number} y
  * @param {boolean} state True/false for live/dead
+ * @returns {GOL} this
  */
 GOL.prototype.poke = function(x, y, state) {
     var gl = this.gl,
@@ -209,10 +210,11 @@ GOL.prototype.poke = function(x, y, state) {
     gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, 1, 1,
                      gl.RGBA, gl.UNSIGNED_BYTE,
                      new Uint8Array([v, v, v, 255]));
+    return this;
 };
 
 /**
- * @returns {Array} An RGBA snapshot of the simulation state.
+ * @returns {Object} Boolean array-like of the simulation state
  */
 GOL.prototype.get = function() {
     var gl = this.gl, w = this.statesize.x, h = this.statesize.y;
