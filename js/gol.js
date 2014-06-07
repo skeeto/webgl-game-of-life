@@ -2,9 +2,8 @@
  * Game of Life simulation and display.
  * @param {HTMLCanvasElement} canvas Render target
  * @param {number} [scale] Size of each cell in pixels (power of 2)
- * @param {number} [p] Starting probability of a cell being alive
  */
-function GOL(canvas, scale, p) {
+function GOL(canvas, scale) {
     var gl = this.gl = Igloo.getContext(canvas);
     if (gl == null) {
         alert('Could not initialize WebGL!');
@@ -35,7 +34,7 @@ function GOL(canvas, scale, p) {
     this.framebuffers = {
         step: gl.createFramebuffer()
     };
-    this.setRandom(p);
+    this.setRandom();
 }
 
 /**
