@@ -47,7 +47,7 @@ GOL.now = function() {
 /**
  * Compact a simulation state into a bit array.
  * @param {Object} state Array-like state object
- * @returns {Uint8Array} Compacted bit array
+ * @returns {ArrayBuffer} Compacted bit array
  */
 GOL.compact = function(state) {
     var compact = new Uint8Array(state.length / 8);
@@ -57,16 +57,17 @@ GOL.compact = function(state) {
             bit = state[i] ? 1 : 0;
         compact[ii] |= bit << shift;
     }
-    return compact;
+    return compact.buffer;
 };
 
 /**
  * Expand a simulation state from a bit array.
- * @param {Uint8Array} compact Compacted bit array
+ * @param {ArrayBuffer} compact Compacted bit array
  * @returns {Object} Array-like state object
  */
-GOL.expand = function(compact) {
-    var state = new Uint8Array(compact.length * 8);
+GOL.expand = function(buffer) {
+    var compact = new Uint8Array(buffer),
+        state = new Uint8Array(compact.length * 8);
     for (var i = 0; i < state.length; i++) {
         var ii = Math.floor(i / 8),
             shift = i % 8;
