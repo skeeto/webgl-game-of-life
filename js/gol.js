@@ -35,7 +35,7 @@ function GOL(canvas, scale, p) {
     this.framebuffers = {
         step: gl.createFramebuffer()
     };
-    this.fillRandom(p);
+    this.setRandom(p);
 }
 
 /**
@@ -68,15 +68,21 @@ GOL.prototype.texture = function() {
 
 /**
  * Set the entire simulation state at once.
- * @param {Uint8Array} state An RGBA array
+ * @param state A boolean array.
  * @returns {GOL} this
  */
-GOL.prototype.fill = function(state) {
+GOL.prototype.set = function(state) {
     var gl = this.gl;
+    var rgba = new Uint8Array(this.statesize.x * this.statesize.y * 4);
+    for (var i = 0; i < state.length; i++) {
+        var ii = i * 4;
+        rgba[ii + 0] = rgba[ii + 1] = rgba[ii + 2] = state[i] ? 255 : 0;
+        rgba[ii + 3] = 255;
+    }
     gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0,
                      this.statesize.x, this.statesize.y,
-                     gl.RGBA, gl.UNSIGNED_BYTE, state);
+                     gl.RGBA, gl.UNSIGNED_BYTE, rgba);
     return this;
 };
 
@@ -85,16 +91,14 @@ GOL.prototype.fill = function(state) {
  * @param {number} [p] Chance of a cell being alive (0.0 to 1.0)
  * @returns {GOL} this
  */
-GOL.prototype.fillRandom = function(p) {
-    var gl = this.gl, fs = 4;
+GOL.prototype.setRandom = function(p) {
+    var gl = this.gl, size = this.statesize.x * this.statesize.y;
     p = p == null ? 0.5 : p;
-    var rand = new Uint8Array(this.statesize.x * this.statesize.y * fs);
-    for (var i = 0; i < rand.length; i += fs) {
-        var v = Math.random() < p ? 255 : 0;
-        rand[i + 0] = rand[i + 1] = rand[i + 2] = v;
-        rand[i + 3] = 255;
+    var rand = new Uint8Array(size);
+    for (var i = 0; i < size; i++) {
+        rand[i] = Math.random() < p ? 1 : 0;
     }
-    this.fill(rand);
+    this.set(rand);
     return this;
 };
 
@@ -102,8 +106,8 @@ GOL.prototype.fillRandom = function(p) {
  * Clear the simulation state to empty.
  * @returns {GOL} this
  */
-GOL.prototype.fillEmpty = function(p) {
-    this.fillRandom(0);
+GOL.prototype.setEmpty = function(p) {
+    this.set(new Uint8Array(this.statesize.x * this.statesize.y));
     return this;
 };
 
@@ -168,7 +172,7 @@ GOL.prototype.draw = function() {
  * @param {number} y
  * @param {boolean} state True/false for live/dead
  */
-GOL.prototype.set = function(x, y, state) {
+GOL.prototype.poke = function(x, y, state) {
     var gl = this.gl,
         v = state * 255;
     gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
@@ -178,16 +182,20 @@ GOL.prototype.set = function(x, y, state) {
 };
 
 /**
- * @returns {Uint8Array} An RGBA snapshot of the simulation state.
+ * @returns {Array} An RGBA snapshot of the simulation state.
  */
 GOL.prototype.get = function() {
     var gl = this.gl, w = this.statesize.x, h = this.statesize.y;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers.step);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
                             gl.TEXTURE_2D, this.textures.front, 0);
-    var data = new Uint8Array(w * h * 4);
-    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    return data;
+    var rgba = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+    var state = new Uint8Array(w * h);
+    for (var i = 0; i < w * h; i++) {
+        state[i] = rgba[i * 4] > 128 ? 1 : 0;
+    }
+    return state;
 };
 
 /**
@@ -251,7 +259,7 @@ function Controller(gol) {
     $canvas.on('mousedown', function(event) {
         _this.drag = event.which;
         var pos = gol.eventCoord(event);
-        gol.set(pos.x, pos.y, _this.drag == 1);
+        gol.poke(pos.x, pos.y, _this.drag == 1);
         gol.draw();
     });
     $canvas.on('mouseup', function(event) {
@@ -260,7 +268,7 @@ function Controller(gol) {
     $canvas.on('mousemove', function(event) {
         if (_this.drag) {
             var pos = gol.eventCoord(event);
-            gol.set(pos.x, pos.y, _this.drag == 1);
+            gol.poke(pos.x, pos.y, _this.drag == 1);
             gol.draw();
         }
     });
@@ -271,11 +279,11 @@ function Controller(gol) {
     $(document).on('keyup', function(event) {
         switch (event.which) {
         case 82: /* r */
-            gol.fillRandom();
+            gol.setRandom();
             gol.draw();
             break;
         case 46: /* [delete] */
-            gol.fillEmpty();
+            gol.setEmpty();
             gol.draw();
             break;
         case 32: /* [space] */
