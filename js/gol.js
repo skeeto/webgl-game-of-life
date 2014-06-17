@@ -4,7 +4,8 @@
  * @param {number} [scale] Size of each cell in pixels (power of 2)
  */
 function GOL(canvas, scale) {
-    var gl = this.gl = Igloo.getContext(canvas);
+    var igloo = this.igloo = new Igloo(canvas);
+    var gl = igloo.gl;
     if (gl == null) {
         alert('Could not initialize WebGL!');
         throw new Error('No WebGL');
@@ -19,20 +20,20 @@ function GOL(canvas, scale) {
 
     gl.disable(gl.DEPTH_TEST);
     this.programs = {
-        copy: new Igloo.Program(gl, 'glsl/quad.vert', 'glsl/copy.frag'),
-        gol: new Igloo.Program(gl, 'glsl/quad.vert', 'glsl/gol.frag')
+        copy: igloo.program('glsl/quad.vert', 'glsl/copy.frag'),
+        gol:  igloo.program('glsl/quad.vert', 'glsl/gol.frag')
     };
     this.buffers = {
-        quad: new Igloo.Buffer(gl, new Float32Array([
-                -1, -1, 1, -1, -1, 1, 1, 1
-        ]))
+        quad: igloo.array(Igloo.QUAD2)
     };
     this.textures = {
-        front: this.texture(),
-        back: this.texture()
+        front: igloo.texture(null, gl.RGBA, gl.REPEAT, gl.NEAREST)
+            .blank(this.statesize.x, this.statesize.y),
+        back: igloo.texture(null, gl.RGBA, gl.REPEAT, gl.NEAREST)
+            .blank(this.statesize.x, this.statesize.y)
     };
     this.framebuffers = {
-        step: gl.createFramebuffer()
+        step: igloo.framebuffer()
     };
     this.setRandom();
 }
@@ -77,43 +78,19 @@ GOL.expand = function(buffer) {
 };
 
 /**
- * @returns {WebGLTexture} A texture suitable for bearing Life state
- */
-GOL.prototype.texture = function() {
-    /* LUMINANCE textures would have been preferable (one byte per
-     * cell), but, unlike RGBA, LUMINANCE is not a complete color
-     * attachment for a framebuffer.
-     */
-    var gl = this.gl;
-    var tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
-                  this.statesize.x, this.statesize.y,
-                  0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    return tex;
-};
-
-/**
  * Set the entire simulation state at once.
  * @param {Object} state Boolean array-like
  * @returns {GOL} this
  */
 GOL.prototype.set = function(state) {
-    var gl = this.gl;
+    var gl = this.igloo.gl;
     var rgba = new Uint8Array(this.statesize.x * this.statesize.y * 4);
     for (var i = 0; i < state.length; i++) {
         var ii = i * 4;
         rgba[ii + 0] = rgba[ii + 1] = rgba[ii + 2] = state[i] ? 255 : 0;
         rgba[ii + 3] = 255;
     }
-    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0,
-                     this.statesize.x, this.statesize.y,
-                     gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+    this.textures.front.subset(rgba, 0, 0, this.statesize.x, this.statesize.y);
     return this;
 };
 
@@ -123,7 +100,7 @@ GOL.prototype.set = function(state) {
  * @returns {GOL} this
  */
 GOL.prototype.setRandom = function(p) {
-    var gl = this.gl, size = this.statesize.x * this.statesize.y;
+    var gl = this.igloo.gl, size = this.statesize.x * this.statesize.y;
     p = p == null ? 0.5 : p;
     var rand = new Uint8Array(size);
     for (var i = 0; i < size; i++) {
@@ -165,15 +142,13 @@ GOL.prototype.step = function() {
     } else {
         this.fps++;
     }
-    var gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers.step);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
-                            gl.TEXTURE_2D, this.textures.back, 0);
-    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
+    var gl = this.igloo.gl;
+    this.framebuffers.step.attach(this.textures.back);
+    this.textures.front.bind(0);
     gl.viewport(0, 0, this.statesize.x, this.statesize.y);
     this.programs.gol.use()
         .attrib('quad', this.buffers.quad, 2)
-        .uniform('state', 0, true)
+        .uniformi('state', 0)
         .uniform('scale', this.statesize)
         .draw(gl.TRIANGLE_STRIP, 4);
     this.swap();
@@ -185,13 +160,13 @@ GOL.prototype.step = function() {
  * @returns {GOL} this
  */
 GOL.prototype.draw = function() {
-    var gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
+    var gl = this.igloo.gl;
+    this.igloo.defaultFramebuffer.bind();
+    this.textures.front.bind(0);
     gl.viewport(0, 0, this.viewsize.x, this.viewsize.y);
     this.programs.copy.use()
         .attrib('quad', this.buffers.quad, 2)
-        .uniform('state', 0, true)
+        .uniformi('state', 0)
         .uniform('scale', this.viewsize)
         .draw(gl.TRIANGLE_STRIP, 4);
     return this;
@@ -205,12 +180,9 @@ GOL.prototype.draw = function() {
  * @returns {GOL} this
  */
 GOL.prototype.poke = function(x, y, state) {
-    var gl = this.gl,
+    var gl = this.igloo.gl,
         v = state * 255;
-    gl.bindTexture(gl.TEXTURE_2D, this.textures.front);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, 1, 1,
-                     gl.RGBA, gl.UNSIGNED_BYTE,
-                     new Uint8Array([v, v, v, 255]));
+    this.textures.front.subset([v, v, v, 255], x, y, 1, 1);
     return this;
 };
 
@@ -218,10 +190,8 @@ GOL.prototype.poke = function(x, y, state) {
  * @returns {Object} Boolean array-like of the simulation state
  */
 GOL.prototype.get = function() {
-    var gl = this.gl, w = this.statesize.x, h = this.statesize.y;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers.step);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
-                            gl.TEXTURE_2D, this.textures.front, 0);
+    var gl = this.igloo.gl, w = this.statesize.x, h = this.statesize.y;
+    this.framebuffers.step.attach(this.textures.front);
     var rgba = new Uint8Array(w * h * 4);
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
     var state = new Uint8Array(w * h);
@@ -287,7 +257,7 @@ GOL.prototype.eventCoord = function(event) {
 function Controller(gol) {
     this.gol = gol;
     var _this = this,
-        $canvas = $(gol.gl.canvas);
+        $canvas = $(gol.igloo.canvas);
     this.drag = null;
     $canvas.on('mousedown', function(event) {
         _this.drag = event.which;
