@@ -12,8 +12,8 @@ function GOL(canvas, scale) {
     }
     scale = this.scale = scale || 4;
     var w = canvas.width, h = canvas.height;
-    this.viewsize = vec2(w, h);
-    this.statesize = vec2(w / scale, h / scale);
+    this.viewsize = new Float32Array([w, h]);
+    this.statesize = new Float32Array([w / scale, h / scale]);
     this.timer = null;
     this.lasttick = GOL.now();
     this.fps = 0;
@@ -28,9 +28,9 @@ function GOL(canvas, scale) {
     };
     this.textures = {
         front: igloo.texture(null, gl.RGBA, gl.REPEAT, gl.NEAREST)
-            .blank(this.statesize.x, this.statesize.y),
+            .blank(this.statesize[0], this.statesize[1]),
         back: igloo.texture(null, gl.RGBA, gl.REPEAT, gl.NEAREST)
-            .blank(this.statesize.x, this.statesize.y)
+            .blank(this.statesize[0], this.statesize[1])
     };
     this.framebuffers = {
         step: igloo.framebuffer()
@@ -84,13 +84,13 @@ GOL.expand = function(buffer) {
  */
 GOL.prototype.set = function(state) {
     var gl = this.igloo.gl;
-    var rgba = new Uint8Array(this.statesize.x * this.statesize.y * 4);
+    var rgba = new Uint8Array(this.statesize[0] * this.statesize[1] * 4);
     for (var i = 0; i < state.length; i++) {
         var ii = i * 4;
         rgba[ii + 0] = rgba[ii + 1] = rgba[ii + 2] = state[i] ? 255 : 0;
         rgba[ii + 3] = 255;
     }
-    this.textures.front.subset(rgba, 0, 0, this.statesize.x, this.statesize.y);
+    this.textures.front.subset(rgba, 0, 0, this.statesize[0], this.statesize[1]);
     return this;
 };
 
@@ -100,7 +100,7 @@ GOL.prototype.set = function(state) {
  * @returns {GOL} this
  */
 GOL.prototype.setRandom = function(p) {
-    var gl = this.igloo.gl, size = this.statesize.x * this.statesize.y;
+    var gl = this.igloo.gl, size = this.statesize[0] * this.statesize[1];
     p = p == null ? 0.5 : p;
     var rand = new Uint8Array(size);
     for (var i = 0; i < size; i++) {
@@ -115,7 +115,7 @@ GOL.prototype.setRandom = function(p) {
  * @returns {GOL} this
  */
 GOL.prototype.setEmpty = function() {
-    this.set(new Uint8Array(this.statesize.x * this.statesize.y));
+    this.set(new Uint8Array(this.statesize[0] * this.statesize[1]));
     return this;
 };
 
@@ -145,7 +145,7 @@ GOL.prototype.step = function() {
     var gl = this.igloo.gl;
     this.framebuffers.step.attach(this.textures.back);
     this.textures.front.bind(0);
-    gl.viewport(0, 0, this.statesize.x, this.statesize.y);
+    gl.viewport(0, 0, this.statesize[0], this.statesize[1]);
     this.programs.gol.use()
         .attrib('quad', this.buffers.quad, 2)
         .uniformi('state', 0)
@@ -163,7 +163,7 @@ GOL.prototype.draw = function() {
     var gl = this.igloo.gl;
     this.igloo.defaultFramebuffer.bind();
     this.textures.front.bind(0);
-    gl.viewport(0, 0, this.viewsize.x, this.viewsize.y);
+    gl.viewport(0, 0, this.viewsize[0], this.viewsize[1]);
     this.programs.copy.use()
         .attrib('quad', this.buffers.quad, 2)
         .uniformi('state', 0)
@@ -190,7 +190,7 @@ GOL.prototype.poke = function(x, y, state) {
  * @returns {Object} Boolean array-like of the simulation state
  */
 GOL.prototype.get = function() {
-    var gl = this.igloo.gl, w = this.statesize.x, h = this.statesize.y;
+    var gl = this.igloo.gl, w = this.statesize[0], h = this.statesize[1];
     this.framebuffers.step.attach(this.textures.front);
     var rgba = new Uint8Array(w * h * 4);
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
@@ -240,7 +240,7 @@ GOL.prototype.toggle = function() {
 /**
  * Find simulation coordinates for event.
  * This is a workaround for Firefox bug #69787 and jQuery bug #8523.
- * @returns {vec2} target-relative offset
+ * @returns {Array} target-relative offset
  */
 GOL.prototype.eventCoord = function(event) {
     var $target = $(event.target),
@@ -248,7 +248,7 @@ GOL.prototype.eventCoord = function(event) {
         border = 1,
         x = event.pageX - offset.left - border,
         y = $target.height() - (event.pageY - offset.top - border);
-    return vec2(Math.floor(x / this.scale), Math.floor(y / this.scale));
+    return [Math.floor(x / this.scale), Math.floor(y / this.scale)];
 };
 
 /**
@@ -262,7 +262,7 @@ function Controller(gol) {
     $canvas.on('mousedown', function(event) {
         _this.drag = event.which;
         var pos = gol.eventCoord(event);
-        gol.poke(pos.x, pos.y, _this.drag == 1);
+        gol.poke(pos[0], pos[1], _this.drag == 1);
         gol.draw();
     });
     $canvas.on('mouseup', function(event) {
@@ -271,7 +271,7 @@ function Controller(gol) {
     $canvas.on('mousemove', function(event) {
         if (_this.drag) {
             var pos = gol.eventCoord(event);
-            gol.poke(pos.x, pos.y, _this.drag == 1);
+            gol.poke(pos[0], pos[1], _this.drag == 1);
             gol.draw();
         }
     });
